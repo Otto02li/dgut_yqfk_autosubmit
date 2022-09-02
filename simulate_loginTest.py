@@ -6,16 +6,24 @@ from tkinter import *
 import win32api,win32con
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-
+from selenium.webdriver.chrome.options import Options
 flagx=0 # 0代表初次使用，1代表已使用过，在本地保有数据
 account=''
 password=''
 message=''  # 存放获取打卡信息
 
 url="https://cas.dgut.edu.cn/home/Oauth/getToken/appid/yqfkdaka/state/home.html"
+
+
 # 模拟浏览器打开网站
-driver = webdriver.Chrome()
+# driver = webdriver.Chrome()
+# driver.get(url)
+
+options=Options()                       # 创建Chrome参数对象
+options.headless = True             # 设置成可视化无界面模式
+driver = webdriver.Chrome(options=options)      # 创建Chrome无界面对象
 driver.get(url)
+
 # 检测本地是否已保存有登录数据
 def is_savedata():
     # 读取文件大小
