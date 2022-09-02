@@ -1,5 +1,6 @@
 import time
 import os
+import re
 import  tkinter as tk
 from tkinter import *
 import win32api,win32con
@@ -7,7 +8,6 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 
 flagx=0 # 0代表初次使用，1代表已使用过，在本地保有数据
-flagc=0 # 0代表do_login(driver)方法未完成
 account=''
 password=''
 message=''  # 存放获取打卡信息
@@ -61,7 +61,7 @@ path_of_dktip="/html[@class=' ']/body/div[@id='app']/div[@class='container']/div
 
 # 模拟登录打卡
 def do_login(driver):
-    global message,flagc
+    global message
     try:
         # 将窗口最大化
         driver.maximize_window()
@@ -78,11 +78,18 @@ def do_login(driver):
         if ( flag != -1):   # 已打卡
             day = re.findall("\d+", title.text)[0]  # 获取打卡天数
             message = "今天已打卡,已打卡" + day + "天"
-            flagc=1
-            return flagc
+
         else:        # 今天未打卡
             button = driver.find_element(By.XPATH,path_of_submitBtn)
-            driver.execute_script("arguments[0].click()",button)    # 点击提交按钮操作
+            driver.execute_script("arguments[0].click()",button)
+            while True:
+                if (button.text=="撤回重填" and flag!=1):
+                    break
+                else:
+                    button=driver.find_element(By.XPATH,path_of_submitBtn)  # 继续检测提交button的内容
+                    title = driver.find_element(By.XPATH, path_of_dktip)    # 继续检测第一行打卡信息
+
+            # 点击提交按钮操作
 
         # 重新提交今日体温操作
         # i=4 # 3个数字加小数点，要按4次delete
@@ -92,15 +99,12 @@ def do_login(driver):
         # driver.find_element(By.NAME,nameofTemperature).send_keys(your_temperature)
 
         # 检测是否打卡成功
-            if(button.text=="撤回重填" or flag!=-1):
+            if(flag!=-1):
                 day = re.findall("\d+", title.text)[0]  # 获取打卡天数
                 message = "打卡成功,已打卡"+day+"天"
-                flagc=1
-                return flagc
             else:
                 message = "出错了，请手动打卡"
-                flagc=1
-                return flagc
+
     except Exception as e:
         print("出现错误",e)
 
@@ -154,14 +158,8 @@ class TkWindow():    # 初次登录窗口类，用于保存输入的账号密码
 
     # 打卡
     def sign_in(self):
-        global flagc
         do_login(driver)
-        while 1:
-            if flagc!=0:
-                self.show_message()
-                break
-            else:
-                continue
+        self.show_message()
         tk.mainloop()
 
     # 销毁布局
@@ -174,18 +172,12 @@ class TkWindow():    # 初次登录窗口类，用于保存输入的账号密码
 
     # botton1的回调函数
     def save_datax(self,str1, str2):
-        global flagx,flagc
+        global flagx
         flagx =1
         save_data(str1,str2) # 保存登录信息到本地
         self.destroy_layout()
-
         do_login(driver)  # 登录界面并打卡
-        while 1:
-            if flagc!=0:
-                self.show_message()
-                break
-            else:
-                continue
+        self.show_message()
 
 
 if __name__=='__main__':
