@@ -2,15 +2,17 @@ import time
 import os
 import re
 import  tkinter as tk
+import threading
 from tkinter import *
-import win32api,win32con
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-flagx=0 # 0代表初次使用，1代表已使用过，在本地保有数据
+
+
+flagx=0                                                                                 # 0代表初次使用，1代表已使用过，在本地保有数据
 account=''
 password=''
-message=''  # 存放获取打卡信息
+message=''                                                                           # 存放获取打卡信息
 
 url="https://cas.dgut.edu.cn/home/Oauth/getToken/appid/yqfkdaka/state/home.html"
 
@@ -19,10 +21,19 @@ url="https://cas.dgut.edu.cn/home/Oauth/getToken/appid/yqfkdaka/state/home.html"
 # driver = webdriver.Chrome()
 # driver.get(url)
 
-options=Options()                       # 创建Chrome参数对象
-options.headless = True             # 设置成可视化无界面模式
-driver = webdriver.Chrome(options=options)      # 创建Chrome无界面对象
+options=Options()                                                              # 创建Chrome参数对象
+options.headless = True                                                     # 设置成可视化无界面模式
+driver = webdriver.Chrome(options=options)                   # 创建Chrome无界面对象
 driver.get(url)
+
+def thread_it(func, *args):
+    '''将函数打包进线程'''
+    # 创建
+    t = threading.Thread(target=func, args=args)        # 如果主线程退出，守护线程也会自动退出
+    # 守护 !!!
+    t.daemon = True
+    # 启动线程
+    t.start()
 
 # 检测本地是否已保存有登录数据
 def is_savedata():
@@ -62,10 +73,18 @@ idofloginBtn='loginBtn'
 nameofTemperature="27"
 
 str="您今天已打卡成功"  # 打卡成功会检测到的字符串
+# str_again_submit = "您已撤回今天的打卡"  # 撤回打卡的字符串
 # 打卡界面提交按钮的xpath
 path_of_submitBtn = "/html[@class=' ']/body/div[@id='app']/div[@class='container']/div[@class='van-tabs van-tabs--card']/div[@class='van-tabs__content van-tabs__content--animated']/div[@class='van-tabs__track']/div[@class='van-tab__pane-wrapper']/div[@class='van-tab__pane']/form[@class='form van-form']/div[@class='van-cell-group van-cell-group--inset van-hairline--top-bottom']/div[@class='van-cell'][2]/div[@class='van-cell__title']/div[@class='van-cell__label']/div/button[@class]"
 # 打卡界面的标头的xpath
 path_of_dktip="/html[@class=' ']/body/div[@id='app']/div[@class='container']/div[@class='van-tabs van-tabs--card']/div[@class='van-tabs__content van-tabs__content--animated']/div[@class='van-tabs__track']/div[@class='van-tab__pane-wrapper']/div[@class='van-tab__pane']/div[@class='tipbox']/div[@class='van-cell-group van-cell-group--inset van-hairline--top-bottom']/div[@class='van-grid van-hairline--top'][1]/div[@class='van-grid-item']/div[@class='van-grid-item__content van-grid-item__content--center van-hairline']/div[@class='van-grid-item__icon-wrapper']/div"
+
+# 检测第一行信息,返回标志
+def detect_dktip():
+    # 检测今天是否已经打卡
+    title = driver.find_element(By.XPATH, path_of_dktip)
+    flag = title.text.find(str)
+    return flag
 
 # 模拟登录打卡
 def do_login(driver):
@@ -80,22 +99,20 @@ def do_login(driver):
         # 延时
         time.sleep(11)   # 参数与你的网速相关，如果网页没加载完就往后执行，会定位不到元素而报错
 
-        # 检测今天是否已经打卡
-        title = driver.find_element(By.XPATH, path_of_dktip)
-        flag = title.text.find(str)
+        # # 检测今天是否已经打卡
+        # title = driver.find_element(By.XPATH, path_of_dktip)
+        # flag = title.text.find(str)
+        flag=detect_dktip()
         if ( flag != -1):   # 已打卡
+            title = driver.find_element(By.XPATH, path_of_dktip)
             day = re.findall("\d+", title.text)[0]  # 获取打卡天数
             message = "今天已打卡,已打卡" + day + "天"
 
         else:        # 今天未打卡
             button = driver.find_element(By.XPATH,path_of_submitBtn)
             driver.execute_script("arguments[0].click()",button)
-            while True:
-                if (button.text=="撤回重填" and flag!=1):
-                    break
-                else:
-                    button=driver.find_element(By.XPATH,path_of_submitBtn)  # 继续检测提交button的内容
-                    title = driver.find_element(By.XPATH, path_of_dktip)    # 继续检测第一行打卡信息
+            time.sleep(30)                                                          # 校园网测得打卡等待用时23.23秒
+            flag = detect_dktip()   # 重新检测第一行
 
             # 点击提交按钮操作
 
@@ -108,6 +125,7 @@ def do_login(driver):
 
         # 检测是否打卡成功
             if(flag!=-1):
+                title = driver.find_element(By.XPATH, path_of_dktip)
                 day = re.findall("\d+", title.text)[0]  # 获取打卡天数
                 message = "打卡成功,已打卡"+day+"天"
             else:
@@ -116,16 +134,12 @@ def do_login(driver):
     except Exception as e:
         print("出现错误",e)
 
-#  弹出消息弹窗
-# def show_message(str1):
-#     win32api.MessageBox(0,str1,"疫情防控打卡",win32con.MB_OK)
-
-
 class TkWindow():    # 初次登录窗口类，用于保存输入的账号密码信息
     def __init__(self):
         self.root = tk.Tk()
         # button2
-        self.button2 = tk.Button(self.root, text='更改登录信息',command=lambda :self.set_data(flagx))
+        # self.button2 = tk.Button(self.root, text='更改登录信息',command=lambda :self.set_data(flagx))
+        self.button2 = tk.Button(self.root, text='更改登录信息', command=lambda: thread_it(self.set_data, flagx))
         self.button2.grid(row=3, column=1,sticky=tk.E, padx=30, pady=5)
 
     # 绘制修改登录信息的界面
@@ -147,7 +161,9 @@ class TkWindow():    # 初次登录窗口类，用于保存输入的账号密码
         self.entry2.grid(row=1, column=1, padx=10, pady=5)
 
         # 下面self.show传参巨坑，python自动转换参数为(self,self.entry1.get(),self.entry2.get())（已更改回调函数)
-        self.button1 = tk.Button(self.root, text='打卡',command=lambda: self.save_datax(self.entry1.get(), self.entry2.get()))
+        # self.button1 = tk.Button(self.root, text='打卡',command=lambda: self.save_datax(self.entry1.get(), self.entry2.get()))
+        self.button1 = tk.Button(self.root, text='打卡',
+                                 command=lambda: thread_it(self.save_datax,self.entry1.get(),self.entry2.get()))
         self.button1.grid(row=3, column=0, sticky=tk.W, padx=30, pady=5)
 
     # button2的回调函数
