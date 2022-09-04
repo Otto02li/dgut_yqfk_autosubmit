@@ -1,6 +1,8 @@
 import time
 import os
 import re
+import sys
+import win32api,win32con
 import  tkinter as tk
 import threading
 from tkinter import *
@@ -16,14 +18,29 @@ message=''                                                                      
 
 url="https://cas.dgut.edu.cn/home/Oauth/getToken/appid/yqfkdaka/state/home.html"
 
+options=Options()                                                              # 创建Chrome参数对象
+options.headless = True                                                     # 设置成可视化无界面模式
+
+# 不动情况下获取谷歌浏览器驱动
+def getDriver():
+    if getattr(sys, 'frozen', False):
+        # 从exe包里找chromeddriver依赖驱动的情况
+        chromedriver_path = os.path.join(sys._MEIPASS, "chromedriver.exe")
+        driver = webdriver.Chrome(chromedriver_path, options=options)
+    else:
+        # 普通情况下从本地文件路径找依赖的情况
+        # driver = webdriver.Chromedriver(executable_path='C:\Program Files\Google\Chrome\Application\chromedriver.exe')   # 本地chromdriver的路径
+        driver = webdriver.Chrome(options=options)
+    return driver
 
 # 模拟浏览器打开网站
 # driver = webdriver.Chrome()
 # driver.get(url)
 
-options=Options()                                                              # 创建Chrome参数对象
-options.headless = True                                                     # 设置成可视化无界面模式
-driver = webdriver.Chrome(options=options)                   # 创建Chrome无界面对象
+# options=Options()                                                              # 创建Chrome参数对象
+# options.headless = True                                                     # 设置成可视化无界面模式
+# driver = webdriver.Chrome(options=options)              # 创建Chrome无界面对象
+driver = getDriver()                                                            # 创建Chrome无界面对象
 driver.get(url)
 
 def thread_it(func, *args):
