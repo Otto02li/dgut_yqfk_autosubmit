@@ -26,11 +26,12 @@ def getDriver():
     if getattr(sys, 'frozen', False):
         # 从exe包里找chromeddriver依赖驱动的情况
         chromedriver_path = os.path.join(sys._MEIPASS, "chromedriver.exe")
-        driver = webdriver.Chrome(chromedriver_path, options=options)
+        # driver = webdriver.Chrome(chromedriver_path, options=options)
+        driver = webdriver.Chrome(chromedriver_path)
     else:
         # 普通情况下从本地文件路径找依赖的情况
-        # driver = webdriver.Chromedriver(executable_path='C:\Program Files\Google\Chrome\Application\chromedriver.exe')   # 本地chromdriver的路径
-        driver = webdriver.Chrome(options=options)
+        # driver = webdriver.Chrome(options=options)                          # 本地chromdriver的路径
+        driver = webdriver.Chrome()
     return driver
 
 # 模拟浏览器打开网站
