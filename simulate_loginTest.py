@@ -9,12 +9,14 @@ from tkinter import *
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.keys import Keys                                    #使用组合键需要导入Keys模块
 
 
 flagx=0                                                                                 # 0代表初次使用，1代表已使用过，在本地保有数据
 account=''
 password=''
 message=''                                                                           # 存放获取打卡信息
+your_temperature='36.4' # 网页要求填保留到一位的小数
 
 url="https://cas.dgut.edu.cn/home/Oauth/getToken/appid/yqfkdaka/state/home.html"
 
@@ -80,8 +82,6 @@ def save_data(str1,str2):
     with open("data.txt","w") as f:
         f.write(account+'\n'+password)
 
-your_temperature='36.5' # 网页要求填保留到一位的小数
-
 # 账号登录界面账号、密码栏、登录按钮控件的id，用于定位
 idofaccount='username'
 idofpassword='casPassword'
@@ -96,6 +96,14 @@ str="您今天已打卡成功"  # 打卡成功会检测到的字符串
 path_of_submitBtn = "/html[@class=' ']/body/div[@id='app']/div[@class='container']/div[@class='van-tabs van-tabs--card']/div[@class='van-tabs__content van-tabs__content--animated']/div[@class='van-tabs__track']/div[@class='van-tab__pane-wrapper']/div[@class='van-tab__pane']/form[@class='form van-form']/div[@class='van-cell-group van-cell-group--inset van-hairline--top-bottom']/div[@class='van-cell'][2]/div[@class='van-cell__title']/div[@class='van-cell__label']/div/button[@class]"
 # 打卡界面的标头的xpath
 path_of_dktip="/html[@class=' ']/body/div[@id='app']/div[@class='container']/div[@class='van-tabs van-tabs--card']/div[@class='van-tabs__content van-tabs__content--animated']/div[@class='van-tabs__track']/div[@class='van-tab__pane-wrapper']/div[@class='van-tab__pane']/div[@class='tipbox']/div[@class='van-cell-group van-cell-group--inset van-hairline--top-bottom']/div[@class='van-grid van-hairline--top'][1]/div[@class='van-grid-item']/div[@class='van-grid-item__content van-grid-item__content--center van-hairline']/div[@class='van-grid-item__icon-wrapper']/div"
+
+# 身体状况选择框的xpath
+path_of_PhysicalCondition= "/html[@class=' ']/body/div[@id='app']/div[@class='container']/div[@class='van-tabs van-tabs--card']/div[@class='van-tabs__content van-tabs__content--animated']/div[@class='van-tabs__track']/div[@class='van-tab__pane-wrapper']/div[@class='van-tab__pane']/form[@class='form van-form']/div[@class='van-cell-group van-cell-group--inset van-hairline--top-bottom']/div[@class='van-cell van-cell--required'][1]/div[@class='van-cell__title']/div[@class='van-cell__label']/div[@class='select van-cell van-cell--clickable van-field']"
+# 良好选项的xpath
+path_of_good_buttom="/html[@class=' ']/body[@class='van-overflow-hidden']/div[@id='app']/div[@class='container']/div[@class='van-popup van-popup--round van-popup--bottom']/div[@class='van-picker']/div[@class='van-picker__columns']/div[@class='van-picker-column']/ul[@class='van-picker-column__wrapper']/li[@class='van-picker-column__item van-picker-column__item--selected']"
+# 确认身体状况按钮的xpath
+path_of_determine_button="/html[@class=' ']/body[@class='van-overflow-hidden']/div[@id='app']/div[@class='container']/div[@class='van-popup van-popup--round van-popup--bottom']/div[@class='van-picker']/div[@class='van-picker__toolbar']/button[@class='van-picker__confirm']"
+
 
 # 检测第一行信息,返回标志
 def detect_dktip():
@@ -115,7 +123,26 @@ def do_login(driver):
         driver.find_element(By.ID,idofpassword).send_keys(password)
         driver.find_element(By.ID,idofloginBtn).click()
         # 延时
-        time.sleep(11)   # 参数与你的网速相关，如果网页没加载完就往后执行，会定位不到元素而报错
+        time.sleep(10)   # 参数与你的网速相关，如果网页没加载完就往后执行，会定位不到元素而报错
+
+        # 选择16.身体状况
+        element1 = driver.find_element(By.XPATH, path_of_PhysicalCondition)        # 点击选择框
+        driver.execute_script("arguments[0].click()",element1)                                    # 定位的元素需要先执行JavaScript才能做操作
+
+        time.sleep(3)                                                                                                        # 等待加载页面资源
+
+        element2 = driver.find_element(By.XPATH,path_of_good_buttom)           # 选择“良好”按钮
+        driver.execute_script("arguments[0].click()",element2)
+
+        element3 = driver.find_element(By.XPATH,path_of_determine_button)        # 点击确认按钮
+        driver.execute_script("arguments[0].click()",element3)
+
+        # 重新提交27.今日体温操作
+        i = 4  # 3个数字加小数点，要按4次delete
+        while (i > 0):
+            driver.find_element(By.NAME, nameofTemperature).send_keys(Keys.BACK_SPACE)
+            i = i - 1
+        driver.find_element(By.NAME, nameofTemperature).send_keys(your_temperature)
 
         # # 检测今天是否已经打卡
         # title = driver.find_element(By.XPATH, path_of_dktip)
@@ -129,17 +156,9 @@ def do_login(driver):
         else:        # 今天未打卡
             button = driver.find_element(By.XPATH,path_of_submitBtn)
             driver.execute_script("arguments[0].click()",button)
-            time.sleep(30)                                                          # 校园网测得打卡等待用时23.23秒
+            time.sleep(25)                                                          # 校园网测得打卡等待用时23.23秒
             flag = detect_dktip()   # 重新检测第一行
 
-            # 点击提交按钮操作
-
-        # 重新提交今日体温操作
-        # i=4 # 3个数字加小数点，要按4次delete
-        # while(i>0):
-        #     driver.find_element(By.NAME,nameofTemperature).send_keys(Keys.BACK_SPACE)
-        #     i=i-1
-        # driver.find_element(By.NAME,nameofTemperature).send_keys(your_temperature)
 
         # 检测是否打卡成功
             if(flag!=-1):
